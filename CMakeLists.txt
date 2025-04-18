@@ -16,9 +16,6 @@ find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
 
-# Set OpenCV_DIR to the directory containing OpenCV 4.5.4
-# set(OpenCV_DIR /lib/x86_64-linux-gnu/cmake/opencv4)
-
 # Find OpenCV
 find_package(OpenCV REQUIRED)
 
@@ -34,12 +31,13 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
   ${cv_bridge_INCLUDE_DIRS}
   ${image_transport_INCLUDE_DIRS}
+  ./include
 )
 
 # Add executable
 add_executable(publish_video src/publish_video.cpp)
-add_executable(display_video src/display_video.cpp)
-add_executable(local_display_video src/local_display_video.cpp)
+add_executable(display_video src/display_video.cpp src/utils.cpp)
+add_executable(local_display_video src/local_display_video.cpp src/utils.cpp)
 
 # Link libraries for publish_video
 ament_target_dependencies(publish_video
@@ -63,6 +61,14 @@ ament_target_dependencies(display_video
 
 target_link_libraries(display_video
   ${OpenCV_LIBRARIES}
+)
+
+# Link libraries for local_display_video
+ament_target_dependencies(local_display_video
+  rclcpp
+  sensor_msgs
+  cv_bridge
+  image_transport
 )
 
 target_link_libraries(local_display_video
