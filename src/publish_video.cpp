@@ -27,8 +27,9 @@ int main(int argc, char **argv)
     // Default parameters
     std::string topic_name = "davinci_endo/default/image_raw";
     int device_id = 0;
+    int target_height = 0; // Default: no resizing
 
-    // Simple argument parsing for --topic and --device
+    // Simple argument parsing for --topic, --device, and --height
     for (int i = 1; i < argc; i++)
     {
         if (std::string(argv[i]) == "--topic" && i + 1 < argc)
@@ -38,6 +39,10 @@ int main(int argc, char **argv)
         else if (std::string(argv[i]) == "--device" && i + 1 < argc)
         {
             device_id = std::stoi(argv[++i]);
+        }
+        else if (std::string(argv[i]) == "--height" && i + 1 < argc)
+        {
+            target_height = std::stoi(argv[++i]);
         }
     }
 
@@ -64,6 +69,15 @@ int main(int argc, char **argv)
         // Capture frame from the camera
         if (cap.read(frame))
         {
+            // Resize frame if target height is specified
+            if (target_height > 0)
+            {
+                int original_height = frame.rows;
+                int original_width = frame.cols;
+                int target_width = (target_height * original_width) / original_height;
+                cv::resize(frame, frame, cv::Size(target_width, target_height));
+            }
+
             // Publish frame from the camera
             publish_image(frame, publisher, node);
         }
