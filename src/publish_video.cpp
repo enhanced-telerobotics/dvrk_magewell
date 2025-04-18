@@ -2,6 +2,7 @@
 #include <image_transport/image_transport.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
+#include <string>
 
 // Function to publish images from a camera
 void publish_image(const cv::Mat &frame, image_transport::Publisher &publisher, const std::shared_ptr<rclcpp::Node> &node)
@@ -23,46 +24,48 @@ int main(int argc, char **argv)
     // Create the node
     auto node = rclcpp::Node::make_shared("publish_video");
 
+    // Default parameters
+    std::string topic_name = "davinci_endo/default/image_raw";
+    int device_id = 0;
+
+    // Simple argument parsing for --topic and --device
+    for (int i = 1; i < argc; i++)
+    {
+        if (std::string(argv[i]) == "--topic" && i + 1 < argc)
+        {
+            topic_name = argv[++i];
+        }
+        else if (std::string(argv[i]) == "--device" && i + 1 < argc)
+        {
+            device_id = std::stoi(argv[++i]);
+        }
+    }
+
     // Image transport setup
     image_transport::ImageTransport it(node);
-    image_transport::Publisher pub_left = it.advertise("davinci_endo/left/image_raw", 10);
-    image_transport::Publisher pub_right = it.advertise("davinci_endo/right/image_raw", 10);
+    image_transport::Publisher publisher = it.advertise(topic_name, 10);
 
-    // Open video capture devices
-    // Note: Run `v4l2-ctl --list-devices` to inspect camera devices
-    cv::VideoCapture cap_left(2, cv::CAP_V4L2);
-    cv::VideoCapture cap_right(0, cv::CAP_V4L2);
+    // Open video capture device using the provided device id
+    cv::VideoCapture cap(device_id, cv::CAP_V4L2);
 
-    if (!cap_left.isOpened() || !cap_right.isOpened())
+    if (!cap.isOpened())
     {
-        RCLCPP_ERROR(node->get_logger(), "Cannot open the video cameras");
+        RCLCPP_ERROR(node->get_logger(), "Cannot open the video camera with device id %d", device_id);
         return -1;
     }
 
-    cv::Mat frame_left, frame_right;
-    rclcpp::Rate loop_rate(120); // Loop maximum frequency
-
-    bool running = true; // Boolean flag to alternate messages
+    cv::Mat frame;
+    // Loop maximum frequency, slightly higher than 60 FPS
+    rclcpp::Rate loop_rate(65);
 
     // Main loop
     while (rclcpp::ok())
     {
-        // Capture frames from both cameras
-        cap_left >> frame_left;
-        cap_right >> frame_right;
-
-        // Publish frames from both cameras
-        publish_image(frame_left, pub_left, node);
-        publish_image(frame_right, pub_right, node);
-
-        // Alternate messages every 3 seconds
-        static auto last_message_time = node->now();
-        auto current_time = node->now();
-        if ((current_time - last_message_time).seconds() >= 3.0) // Alternate message every 3 seconds
+        // Capture frame from the camera
+        if (cap.read(frame))
         {
-            std::cout << "\r" << (running ? "Running..." : "Active...") << std::flush;
-            running = !running;               // Toggle the message
-            last_message_time = current_time; // Update last message time
+            // Publish frame from the camera
+            publish_image(frame, publisher, node);
         }
 
         // Handle callbacks and sleep
