@@ -3,10 +3,14 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-# Usage Example:
+# Usage Examples:
 # ros2 launch dvrk_magewell publish_stereo.py
 # ros2 launch dvrk_magewell publish_stereo.py height:=720
 # ros2 launch dvrk_magewell publish_stereo.py height:=540
+
+# Display Examples:
+# ros2 run dvrk_magewell display_video -d -m -h 720 -w 1280 --left-offset 0
+# ros2 run dvrk_magewell display_video -d -c -h 720 -w 1280 --left-offset 0
 
 def generate_launch_description():
     # Declare a launch argument for extra arguments

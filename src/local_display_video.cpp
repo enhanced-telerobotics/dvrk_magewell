@@ -2,9 +2,6 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 
-#define DISPLAY_HEIGHT 768
-#define DISPLAY_WIDTH 1024
-
 int main(int argc, char **argv)
 {
     // Process command line arguments
@@ -37,17 +34,17 @@ int main(int argc, char **argv)
         }
 
         // Resize and center crop
-        cv::Mat resizedLeft = resizeImage(frameLeft, DISPLAY_HEIGHT, DISPLAY_WIDTH);
-        cv::Mat croppedLeft = centerCrop(resizedLeft, DISPLAY_WIDTH);
-        cv::Mat croppedRight;
-        if (!config.mono)
+        cv::Mat resizedLeft = resizeImage(frameLeft, config.height, config.width);
+        cv::Mat resizedRight = resizeImage(frameRight, config.height, config.width);
+
+        if (config.crop)
         {
-            cv::Mat resizedRight = resizeImage(frameRight, DISPLAY_HEIGHT, DISPLAY_WIDTH);
-            croppedRight = centerCrop(resizedRight, DISPLAY_WIDTH);
+            cv::Mat resizedLeft = centerCrop(resizedLeft, config.width);
+            cv::Mat resizedRight = centerCrop(resizedRight, config.width);
         }
 
         // Display images through the helper function
-        displayImages(config, croppedLeft, croppedRight);
+        displayImages(config, resizedLeft, resizedRight);
 
         if (cv::waitKey(1) == 'q')
         {

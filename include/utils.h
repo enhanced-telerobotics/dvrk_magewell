@@ -11,10 +11,18 @@ cv::Mat resizeImage(const cv::Mat &image, int targetHeight, int targetWidth);
 cv::Mat centerCrop(const cv::Mat &image, int targetWidth);
 
 // Struct to hold configuration
-struct Config {
-    bool disableWindowSettings;
-    bool mono;
-    bool concat;
+struct Config
+{
+    bool disableWindowSettings = false;
+    bool mono = false;
+    bool concat = false;
+    bool crop = false;
+
+    int height = 768;
+    int width = 1024;
+
+    int leftOffset = 5120;
+    int rightOffset = leftOffset + width;
 };
 
 // Process command-line arguments

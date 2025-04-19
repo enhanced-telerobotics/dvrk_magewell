@@ -23,7 +23,9 @@ def generate_launch_description():
         executable='display_video',
         name='display_video',
         output='screen',
-        parameters=[{'use_sim_time': True}]
+        parameters=[{'use_sim_time': True}],
+        arguments=['-h', '768', '-w', '1024', '-l', f'{2*2560}', '--crop']
+        # Add 2 WQHD monitors padded to the left windows
     )
 
     mtm_display = TimerAction(

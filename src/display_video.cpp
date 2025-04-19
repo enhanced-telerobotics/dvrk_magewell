@@ -7,9 +7,6 @@
 #include <mutex>
 #include <condition_variable>
 
-#define DISPLAY_HEIGHT 768
-#define DISPLAY_WIDTH 1024
-
 std::mutex leftMutex, rightMutex;
 cv::Mat leftFrame, rightFrame;
 bool leftFrameReady = false, rightFrameReady = false;
@@ -94,18 +91,17 @@ int main(int argc, char **argv)
         }
 
         // Resize and center crop
-        cv::Mat resizedLeft = resizeImage(frameLeft, DISPLAY_HEIGHT, DISPLAY_WIDTH);
-        cv::Mat croppedLeft = centerCrop(resizedLeft, DISPLAY_WIDTH);
-        cv::Mat croppedRight;
+        cv::Mat resizedLeft = resizeImage(frameLeft, config.height, config.width);
+        cv::Mat resizedRight = resizeImage(frameRight, config.height, config.width);
 
-        if (!config.mono)
+        if (config.crop)
         {
-            cv::Mat resizedRight = resizeImage(frameRight, DISPLAY_HEIGHT, DISPLAY_WIDTH);
-            croppedRight = centerCrop(resizedRight, DISPLAY_WIDTH);
+            cv::Mat resizedLeft = centerCrop(resizedLeft, config.width);
+            cv::Mat resizedRight = centerCrop(resizedRight, config.width);
         }
 
         // Display images through the helper function
-        displayImages(config, croppedLeft, croppedRight);
+        displayImages(config, resizedLeft, resizedRight);
 
         if (cv::waitKey(1) == 'q')
         {

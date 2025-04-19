@@ -6,6 +6,10 @@
 // Resize image maintaining aspect ratio
 cv::Mat resizeImage(const cv::Mat &image, int targetHeight, int targetWidth)
 {
+    if (image.empty())
+    {
+        return cv::Mat();
+    }
     int h = image.rows;
     int w = image.cols;
     float scale = std::max(static_cast<float>(targetWidth) / w, static_cast<float>(targetHeight) / h);
@@ -19,6 +23,10 @@ cv::Mat resizeImage(const cv::Mat &image, int targetHeight, int targetWidth)
 // Center crop the image to the target width
 cv::Mat centerCrop(const cv::Mat &image, int targetWidth)
 {
+    if (image.empty())
+    {
+        return cv::Mat();
+    }
     int w = image.cols;
     int startX = (w - targetWidth) / 2;
     startX = std::max(0, startX);
@@ -29,7 +37,7 @@ cv::Mat centerCrop(const cv::Mat &image, int targetWidth)
 // Process command-line arguments
 Config processArgs(int argc, char **argv)
 {
-    Config config { false, false, false };
+    Config config;
     for (int i = 1; i < argc; ++i)
     {
         std::string arg = argv[i];
@@ -45,6 +53,38 @@ Config processArgs(int argc, char **argv)
         {
             config.concat = true;
         }
+        else if (arg == "--crop")
+        {
+            config.crop = true;
+        }
+        else if (arg == "-h" || arg == "--height")
+        {
+            if (i + 1 < argc)
+            {
+                config.height = std::stoi(argv[++i]);
+            }
+        }
+        else if (arg == "-w" || arg == "--width")
+        {
+            if (i + 1 < argc)
+            {
+                config.width = std::stoi(argv[++i]);
+            }
+        }
+        else if (arg == "--left-offset")
+        {
+            if (i + 1 < argc)
+            {
+                config.leftOffset = std::stoi(argv[++i]);
+            }
+        }
+        else if (arg == "--right-offset")
+        {
+            if (i + 1 < argc)
+            {
+                config.rightOffset = std::stoi(argv[++i]);
+            }
+        }
     }
     return config;
 }
@@ -58,7 +98,7 @@ void setupWindows(const Config &config)
         if (!config.disableWindowSettings)
         {
             cv::setWindowProperty("Left Image", cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
-            cv::moveWindow("Left Image", 5120, 0);
+            cv::moveWindow("Left Image", config.leftOffset, 0);
         }
     }
     else if (config.concat)
@@ -67,7 +107,7 @@ void setupWindows(const Config &config)
         if (!config.disableWindowSettings)
         {
             cv::setWindowProperty("Concatenated Image", cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
-            cv::moveWindow("Concatenated Image", 5120, 0);
+            cv::moveWindow("Concatenated Image", config.leftOffset, 0);
         }
     }
     else
@@ -78,8 +118,8 @@ void setupWindows(const Config &config)
         {
             cv::setWindowProperty("Left Image", cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
             cv::setWindowProperty("Right Image", cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
-            cv::moveWindow("Left Image", 5120, 0);
-            cv::moveWindow("Right Image", 6144, 0);
+            cv::moveWindow("Left Image", config.leftOffset, 0);
+            cv::moveWindow("Right Image", config.rightOffset, 0);
         }
     }
 }
