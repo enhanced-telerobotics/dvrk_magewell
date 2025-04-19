@@ -11,6 +11,8 @@ from launch_ros.actions import Node
 # Display Examples:
 # ros2 run dvrk_magewell display_video -d -m -h 720 -w 1280 --left-offset 0
 # ros2 run dvrk_magewell display_video -d -c -h 720 -w 1280 --left-offset 0
+# ros2 run dvrk_magewell display_video -c -h 1080 -w 960 --left-offset 2560 # goovis
+# ros2 run dvrk_magewell display_video -h 768 -w 1024 --crop --left-offset 5120 # mtm
 
 def generate_launch_description():
     # Declare a launch argument for extra arguments

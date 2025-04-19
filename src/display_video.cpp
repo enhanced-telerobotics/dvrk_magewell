@@ -94,14 +94,20 @@ int main(int argc, char **argv)
         cv::Mat resizedLeft = resizeImage(frameLeft, config.height, config.width);
         cv::Mat resizedRight = resizeImage(frameRight, config.height, config.width);
 
+        cv::Mat croppedLeft, croppedRight;
         if (config.crop)
         {
-            cv::Mat resizedLeft = centerCrop(resizedLeft, config.width);
-            cv::Mat resizedRight = centerCrop(resizedRight, config.width);
+            croppedLeft = centerCrop(resizedLeft, config.width);
+            croppedRight = centerCrop(resizedRight, config.width);
+        }
+        else
+        {
+            croppedLeft = resizedLeft;
+            croppedRight = resizedRight;
         }
 
         // Display images through the helper function
-        displayImages(config, resizedLeft, resizedRight);
+        displayImages(config, croppedLeft, croppedRight);
 
         if (cv::waitKey(1) == 'q')
         {
