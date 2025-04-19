@@ -24,9 +24,9 @@ def generate_launch_description():
         name='display_video',
         output='screen',
         parameters=[{'use_sim_time': True}],
-        arguments=['-c', '-h', '1080', '-w', f'{1920//2}', '--left-offset', '2560']
+        arguments=['-c', '-h', '1080', '-w', f'{1920//2}', '--left-offset', f'{2560*2}']
         # Concatenate stereo images and squeeze to 1080p
-        # Add 1 WQHD monitors padded to the left windows
+        # Add 2 WQHD monitors padded to the left windows
     )
 
     mtm_display = TimerAction(
