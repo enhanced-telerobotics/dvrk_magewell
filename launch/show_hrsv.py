@@ -24,7 +24,7 @@ def generate_launch_description():
         name='display_video',
         output='screen',
         parameters=[{'use_sim_time': True}],
-        arguments=['-h', '768', '-w', '1024', '-l', f'{2*2560}', '--crop']
+        arguments=['-h', '768', '-w', '1024', '--left-offset', f'{2*2560}', '--crop']
         # Add 2 WQHD monitors padded to the left windows
     )
 
