@@ -124,3 +124,6 @@ Launches nodes to display stereo video streams optimized for Goovis without publ
    ```bash
    source ~/ros2_ws/install/setup.bash
    ```
+
+## License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
