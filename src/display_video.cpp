@@ -21,7 +21,7 @@ void leftImageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
     }
     catch (cv_bridge::Exception &e)
     {
-        std::cerr << "cv_bridge exception (left): " << e.what() << std::endl;
+        RCLCPP_ERROR(rclcpp::get_logger("video_display_node"), "cv_bridge exception (left): %s", e.what());
     }
 }
 
@@ -35,7 +35,7 @@ void rightImageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
     }
     catch (cv_bridge::Exception &e)
     {
-        std::cerr << "cv_bridge exception (right): " << e.what() << std::endl;
+        RCLCPP_ERROR(rclcpp::get_logger("video_display_node"), "cv_bridge exception (right): %s", e.what());
     }
 }
 
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 
         if (frameLeft.empty() || (!config.mono && frameRight.empty()))
         {
-            std::cerr << "Waiting for frames..." << std::endl;
+            RCLCPP_WARN(rclcpp::get_logger("video_display_node"), "Waiting for frames...");
             loopRate.sleep();
             continue;
         }
@@ -111,6 +111,7 @@ int main(int argc, char **argv)
 
         if (cv::waitKey(1) == 'q')
         {
+            RCLCPP_INFO(rclcpp::get_logger("video_display_node"), "Exiting...");
             break;
         }
 
