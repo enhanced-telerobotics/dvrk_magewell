@@ -4,12 +4,6 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 
-// Resize image maintaining aspect ratio
-cv::Mat resizeImage(const cv::Mat &image, int targetHeight, int targetWidth);
-
-// Center crop the image to the target width
-cv::Mat centerCrop(const cv::Mat &image, int targetWidth);
-
 // Struct to hold configuration
 struct Config
 {
@@ -18,8 +12,8 @@ struct Config
     bool concat = false;
     bool crop = false;
 
-    int height = 768;
-    int width = 1024;
+    int height = 1080;
+    int width = 960;
 
     int leftOffset = 5120;
     int rightOffset = leftOffset + width;
@@ -27,6 +21,12 @@ struct Config
 
 // Process command-line arguments
 Config processArgs(int argc, char **argv);
+
+// Resize image maintaining aspect ratio
+cv::Mat resizeImage(const Config &config, const cv::Mat &image);
+
+// Center crop the image to the target width
+cv::Mat centerCrop(const cv::Mat &image, int targetWidth);
 
 // Set up windows
 void setupWindows(const Config &config);

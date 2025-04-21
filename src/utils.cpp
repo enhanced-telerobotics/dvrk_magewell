@@ -4,17 +4,30 @@
 #include <string>
 
 // Resize image maintaining aspect ratio
-cv::Mat resizeImage(const cv::Mat &image, int targetHeight, int targetWidth)
+cv::Mat resizeImage(const Config &config, const cv::Mat &image)
 {
     if (image.empty())
     {
         return cv::Mat();
     }
-    int h = image.rows;
-    int w = image.cols;
-    float scale = std::max(static_cast<float>(targetWidth) / w, static_cast<float>(targetHeight) / h);
-    int newWidth = static_cast<int>(w * scale);
-    int newHeight = static_cast<int>(h * scale);
+
+    int newWidth, newHeight;
+    if (config.crop)
+    {
+        // Keep the ratio of the image for the crop
+        int h = image.rows;
+        int w = image.cols;
+        float scale = std::max(static_cast<float>(config.width) / w, static_cast<float>(config.height) / h);
+        newWidth = static_cast<int>(w * scale);
+        newHeight = static_cast<int>(h * scale);
+    }
+    else
+    {
+        // Resize the image to the target dimensions
+        newWidth = config.width;
+        newHeight = config.height;
+    }
+    
     cv::Mat resized;
     cv::resize(image, resized, cv::Size(newWidth, newHeight));
     return resized;

@@ -91,8 +91,8 @@ int main(int argc, char **argv)
         }
 
         // Resize and center crop
-        cv::Mat resizedLeft = resizeImage(frameLeft, config.height, config.width);
-        cv::Mat resizedRight = resizeImage(frameRight, config.height, config.width);
+        cv::Mat resizedLeft = resizeImage(config, frameLeft);
+        cv::Mat resizedRight = resizeImage(config, frameRight);
 
         cv::Mat croppedLeft, croppedRight;
         if (config.crop)
