@@ -2,6 +2,7 @@
 #define UTILS_H
 
 #include <opencv2/opencv.hpp>
+#include <sensor_msgs/msg/image.hpp>
 #include <string>
 
 // Struct to hold configuration
@@ -33,5 +34,8 @@ void setupWindows(const Config &config);
 
 // Display images
 void displayImages(const Config &config, const cv::Mat &croppedLeft, const cv::Mat &croppedRight);
+
+// Convert an image to BGR8 format
+cv::Mat to_bgr8(const sensor_msgs::msg::Image::SharedPtr &msg, const std::string &loggerName);
 
 #endif // UTILS_H

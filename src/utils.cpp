@@ -2,6 +2,8 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <string>
+#include <cv_bridge/cv_bridge.h>
+#include <rclcpp/rclcpp.hpp>
 
 // Resize image maintaining aspect ratio
 cv::Mat resizeImage(const Config &config, const cv::Mat &image)
@@ -152,5 +154,29 @@ void displayImages(const Config &config, const cv::Mat &croppedLeft, const cv::M
     {
         cv::imshow("Left Image", croppedLeft);
         cv::imshow("Right Image", croppedRight);
+    }
+}
+
+// Convert an image to BGR8 format
+cv::Mat to_bgr8(const sensor_msgs::msg::Image::SharedPtr &msg, const std::string &loggerName)
+{
+    try
+    {
+        if (msg->encoding == "mono8")
+        {
+            cv::Mat gray = cv_bridge::toCvCopy(msg, "mono8")->image;
+            cv::Mat bgr;
+            cv::cvtColor(gray, bgr, cv::COLOR_GRAY2BGR);
+            return bgr;
+        }
+        else
+        {
+            return cv_bridge::toCvCopy(msg, "bgr8")->image;
+        }
+    }
+    catch (cv_bridge::Exception &e)
+    {
+        RCLCPP_ERROR(rclcpp::get_logger(loggerName), "cv_bridge exception: %s", e.what());
+        return cv::Mat(); // Return an empty matrix on failure
     }
 }

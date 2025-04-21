@@ -14,28 +14,20 @@ bool leftFrameReady = false, rightFrameReady = false;
 void leftImageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(leftMutex);
-    try
+    leftFrame = to_bgr8(msg, "video_display_node");
+    if (!leftFrame.empty())
     {
-        leftFrame = cv_bridge::toCvCopy(msg, "bgr8")->image;
         leftFrameReady = true;
-    }
-    catch (cv_bridge::Exception &e)
-    {
-        RCLCPP_ERROR(rclcpp::get_logger("video_display_node"), "cv_bridge exception (left): %s", e.what());
     }
 }
 
 void rightImageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(rightMutex);
-    try
+    rightFrame = to_bgr8(msg, "video_display_node");
+    if (!rightFrame.empty())
     {
-        rightFrame = cv_bridge::toCvCopy(msg, "bgr8")->image;
         rightFrameReady = true;
-    }
-    catch (cv_bridge::Exception &e)
-    {
-        RCLCPP_ERROR(rclcpp::get_logger("video_display_node"), "cv_bridge exception (right): %s", e.what());
     }
 }
 
