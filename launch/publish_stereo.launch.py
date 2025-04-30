@@ -19,7 +19,8 @@ def generate_launch_description():
         launch_ros.actions.Node(
             package='image_publisher', executable='image_publisher_node', output='screen',
             arguments=[device_0],
-            parameters=[{'use_sim_time': use_sim_time, 'publish_rate': 60.0}],
+            parameters=[{'use_sim_time': use_sim_time, 'publish_rate': 60.0,
+                         'camera_info_url': 'file:///home/erie_lab/ros2_ws/src/dvrk_magewell/resources/left_0.yaml'}],
             name='image_publisher_left',
             remappings=[('image_raw', '/davinci_endo/left/image_raw'),
                         ('camera_info', '/davinci_endo/left/camera_info')]),
@@ -28,7 +29,8 @@ def generate_launch_description():
         launch_ros.actions.Node(
             package='image_publisher', executable='image_publisher_node', output='screen',
             arguments=[device_1],
-            parameters=[{'use_sim_time': use_sim_time, 'publish_rate': 60.0}],
+            parameters=[{'use_sim_time': use_sim_time, 'publish_rate': 60.0,
+                         'camera_info_url': 'file:///home/erie_lab/ros2_ws/src/dvrk_magewell/resources/right_0.yaml'}],
             name='image_publisher_right',
             remappings=[('image_raw', '/davinci_endo/right/image_raw'),
                         ('camera_info', '/davinci_endo/right/camera_info')]),
