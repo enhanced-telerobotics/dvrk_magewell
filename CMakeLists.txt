@@ -15,6 +15,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
+find_package(message_filters REQUIRED)
 
 # Find OpenCV
 find_package(OpenCV REQUIRED)
@@ -56,6 +57,7 @@ ament_target_dependencies(display_video
   rclcpp
   sensor_msgs
   cv_bridge
+  message_filters
   image_transport
 )
 

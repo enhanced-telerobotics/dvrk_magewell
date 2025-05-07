@@ -36,6 +36,7 @@ void setupWindows(const Config &config);
 void displayImages(const Config &config, const cv::Mat &croppedLeft, const cv::Mat &croppedRight);
 
 // Convert an image to BGR8 format
-cv::Mat to_bgr8(const sensor_msgs::msg::Image::SharedPtr &msg, const std::string &loggerName);
+cv::Mat to_bgr8(const sensor_msgs::msg::Image::ConstSharedPtr &msg,
+                const std::string &logger_name);
 
 #endif // UTILS_H

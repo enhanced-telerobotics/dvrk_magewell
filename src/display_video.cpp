@@ -1,118 +1,81 @@
-#include "../include/utils.h"
-#include <opencv2/opencv.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/msg/image.hpp>
-#include <iostream>
-#include <mutex>
-#include <condition_variable>
+#include <message_filters/subscriber.h>
+#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/synchronizer.h>
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+#include "../include/utils.h"
 
-std::mutex leftMutex, rightMutex;
-cv::Mat leftFrame, rightFrame;
-bool leftFrameReady = false, rightFrameReady = false;
-
-void leftImageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
+class StereoViewerNode : public rclcpp::Node
 {
-    std::lock_guard<std::mutex> lock(leftMutex);
-    leftFrame = to_bgr8(msg, "video_display_node");
-    if (!leftFrame.empty())
+public:
+    explicit StereoViewerNode(const Config &config)
+        : Node("stereo_view"), config_(config)
     {
-        leftFrameReady = true;
-    }
-}
+        // Subscribe with message_filters so the synchronizer owns the subscribers
+        left_sub_.subscribe(this, "davinci_endo/left/image_raw");
+        right_sub_.subscribe(this, "davinci_endo/right/image_raw");
 
-void rightImageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
-{
-    std::lock_guard<std::mutex> lock(rightMutex);
-    rightFrame = to_bgr8(msg, "video_display_node");
-    if (!rightFrame.empty())
-    {
-        rightFrameReady = true;
+        constexpr int queue_size = 10;
+        sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(SyncPolicy(queue_size), left_sub_, right_sub_);
+        sync_->registerCallback(std::bind(&StereoViewerNode::imageCallback, this, std::placeholders::_1, std::placeholders::_2));
+
+        setupWindows(config_);
+        RCLCPP_INFO(get_logger(), "StereoViewerNode initialised – waiting for image pairs …");
     }
-}
+
+    ~StereoViewerNode() override
+    {
+        cv::destroyAllWindows();
+    }
+
+private:
+    using SyncPolicy = message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image,
+                                                                       sensor_msgs::msg::Image>;
+
+    // -----------------------------  Callback  -----------------------------------------
+    void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr &left_msg,
+                       const sensor_msgs::msg::Image::ConstSharedPtr &right_msg)
+    {
+        // Convert ROS messages → OpenCV BGR8
+        cv::Mat left_raw  = to_bgr8(left_msg,  this->get_name());
+        cv::Mat right_raw = to_bgr8(right_msg, this->get_name());
+        if (left_raw.empty() || right_raw.empty())
+            return;  // conversion failed
+
+        // Resize (and optionally overscale for cropping)
+        cv::Mat left_proc  = resizeImage(config_, left_raw);
+        cv::Mat right_proc = resizeImage(config_, right_raw);
+
+        // Optional centre‑crop to requested width
+        if (config_.crop)
+        {
+            left_proc  = centerCrop(left_proc,  config_.width);
+            right_proc = centerCrop(right_proc, config_.width);
+        }
+
+        // Show images according to the flags (mono / concat / stereo)
+        displayImages(config_, left_proc, right_proc);
+
+        // HighGUI needs a brief wait to refresh
+        cv::waitKey(1);
+    }
+
+    // -----------------------------  Members  ------------------------------------------
+    Config config_;
+    message_filters::Subscriber<sensor_msgs::msg::Image> left_sub_;
+    message_filters::Subscriber<sensor_msgs::msg::Image> right_sub_;
+    std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
+};
 
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    auto node = rclcpp::Node::make_shared("video_display_node");
-
-    // Process command line arguments
-    Config config = processArgs(argc, argv);
-
-    // Set up ROS 2 subscriptions
-    auto leftSub = node->create_subscription<sensor_msgs::msg::Image>(
-        "davinci_endo/left/image_raw", 10, leftImageCallback);
-
-    auto rightSub = config.mono ? nullptr : node->create_subscription<sensor_msgs::msg::Image>(
-        "davinci_endo/right/image_raw", 10, rightImageCallback);
-
-    // Set up windows
-    setupWindows(config);
-
-    rclcpp::Rate loopRate(60);
-    while (rclcpp::ok())
-    {
-        rclcpp::spin_some(node);
-
-        cv::Mat frameLeft, frameRight;
-
-        {
-            std::lock_guard<std::mutex> lock(leftMutex);
-            if (leftFrameReady)
-            {
-                frameLeft = leftFrame.clone();
-                leftFrameReady = false;
-            }
-        }
-
-        if (!config.mono)
-        {
-            std::lock_guard<std::mutex> lock(rightMutex);
-            if (rightFrameReady)
-            {
-                frameRight = rightFrame.clone();
-                rightFrameReady = false;
-            }
-        }
-
-        if (frameLeft.empty() || (!config.mono && frameRight.empty()))
-        {
-            RCLCPP_WARN(rclcpp::get_logger("video_display_node"), "Waiting for frames...");
-            loopRate.sleep();
-            continue;
-        }
-
-        // Resize and center crop
-        cv::Mat resizedLeft = resizeImage(config, frameLeft);
-        cv::Mat resizedRight = resizeImage(config, frameRight);
-
-        cv::Mat croppedLeft, croppedRight;
-        if (config.crop)
-        {
-            croppedLeft = centerCrop(resizedLeft, config.width);
-            croppedRight = centerCrop(resizedRight, config.width);
-        }
-        else
-        {
-            croppedLeft = resizedLeft;
-            croppedRight = resizedRight;
-        }
-
-        // Display images through the helper function
-        displayImages(config, croppedLeft, croppedRight);
-
-        if (cv::waitKey(1) == 'q')
-        {
-            RCLCPP_INFO(rclcpp::get_logger("video_display_node"), "Exiting...");
-            break;
-        }
-
-        loopRate.sleep();
-    }
-
-    // Cleanup
-    cv::destroyAllWindows();
+    Config cfg = processArgs(argc, argv);
+    auto node = std::make_shared<StereoViewerNode>(cfg);
+    rclcpp::spin(node);
     rclcpp::shutdown();
-
     return 0;
 }
