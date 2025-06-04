@@ -17,10 +17,11 @@ def generate_launch_description():
         name='local_display_video',
         output='screen',
         arguments=[
-            '-c',
-            '-h', '1080',
-            '-w', f'{1920//2}',
-            '--left-offset', f'{2560*2}'
+            '-h', '768',
+            '-w', '1024',
+            '--left-offset', f'{2*2560}',
+            '--ratio', '4:3',
+            '--method', 'crop',
         ],
         condition=LaunchConfigurationEquals('device', 'HD')
     )
@@ -31,13 +32,12 @@ def generate_launch_description():
         name='local_display_video',
         output='screen',
         arguments=[
-            '-c',
-            '-h', '1080',
-            '-w', f'{1920//2}',
-            '--left-offset', f'{2560*2}',
-            '--device', 'SD',
-            '--ratio', '16:9',
-            '--method', 'pad',
+            '-h', '768',
+            '-w', '1024',
+            '--left-offset', f'{2*2560}',
+            '--ratio', '4:3',
+            '--method', 'original',
+            '--device', 'SD'
         ],
         condition=LaunchConfigurationEquals('device', 'SD')
     )
