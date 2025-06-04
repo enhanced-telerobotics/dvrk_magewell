@@ -25,26 +25,18 @@ int main(int argc, char **argv)
     auto node = rclcpp::Node::make_shared("publish_video");
 
     // Default parameters
-    std::string topic_name = "davinci_endo/default/image_raw";
+    std::string topic_name = "image_raw";
     int device_id = 0;
     int target_height = 0; // Default: no resizing
 
-    // Simple argument parsing for --topic, --device, and --height
-    for (int i = 1; i < argc; i++)
-    {
-        if (std::string(argv[i]) == "--topic" && i + 1 < argc)
-        {
-            topic_name = argv[++i];
-        }
-        else if (std::string(argv[i]) == "--device" && i + 1 < argc)
-        {
-            device_id = std::stoi(argv[++i]);
-        }
-        else if (std::string(argv[i]) == "--height" && i + 1 < argc)
-        {
-            target_height = std::stoi(argv[++i]);
-        }
-    }
+    // Parse ROS2 parameters for topic, device, and height
+    node->declare_parameter<std::string>("topic", topic_name);
+    node->declare_parameter<int>("device", device_id);
+    node->declare_parameter<int>("height", target_height);
+
+    node->get_parameter("topic", topic_name);
+    node->get_parameter("device", device_id);
+    node->get_parameter("height", target_height);
 
     // Image transport setup
     image_transport::ImageTransport it(node);
@@ -52,6 +44,7 @@ int main(int argc, char **argv)
 
     // Open video capture device using the provided device id
     cv::VideoCapture cap(device_id, cv::CAP_V4L2);
+    cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
 
     if (!cap.isOpened())
     {
