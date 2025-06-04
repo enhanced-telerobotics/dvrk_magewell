@@ -7,9 +7,39 @@ int main(int argc, char **argv)
     // Process command line arguments
     Config config = processArgs(argc, argv);
 
-    // Open video capture devices
-    cv::VideoCapture capLeft(2, cv::CAP_V4L2);
-    cv::VideoCapture capRight(0, cv::CAP_V4L2);
+    cv::VideoCapture capLeft, capRight;
+
+    if (config.device == "HD")
+    {
+        capLeft.open(2, cv::CAP_V4L2);
+        capRight.open(0, cv::CAP_V4L2);
+
+        capLeft.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
+        capLeft.set(cv::CAP_PROP_FRAME_WIDTH, 1920);
+        capLeft.set(cv::CAP_PROP_FRAME_HEIGHT, 1080);
+
+        capRight.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
+        capRight.set(cv::CAP_PROP_FRAME_WIDTH, 1920);
+        capRight.set(cv::CAP_PROP_FRAME_HEIGHT, 1080);
+    }
+    else if (config.device == "SD")
+    {
+        capLeft.open(4, cv::CAP_V4L2);
+        capRight.open(5, cv::CAP_V4L2);
+
+        capLeft.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
+        // capLeft.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+        // capLeft.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+
+        capRight.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
+        // capRight.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+        // capRight.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+    }
+    else
+    {
+        std::cerr << "Unknown device type: " << config.device << std::endl;
+        return -1;
+    }
 
     if (!capLeft.isOpened() || (!config.mono && !capRight.isOpened()))
     {
@@ -22,10 +52,10 @@ int main(int argc, char **argv)
 
     while (true)
     {
-        cv::Mat frameLeft, frameRight;
+        cv::Mat left_raw, right_raw;
 
-        bool retLeft = capLeft.read(frameLeft);
-        bool retRight = config.mono ? true : capRight.read(frameRight);
+        bool retLeft = capLeft.read(left_raw);
+        bool retRight = config.mono ? true : capRight.read(right_raw);
 
         if (!retLeft || (!config.mono && !retRight))
         {
@@ -33,24 +63,30 @@ int main(int argc, char **argv)
             break;
         }
 
-        // Resize and center crop
-        cv::Mat resizedLeft = resizeImage(config, frameLeft);
-        cv::Mat resizedRight = resizeImage(config, frameRight);
-
-        cv::Mat croppedLeft, croppedRight;
-        if (config.crop)
+        // Apply ratio (crop or pad) to raw images
+        cv::Mat left_proc, right_proc;
+        if (config.method == "crop")
         {
-            croppedLeft = centerCrop(resizedLeft, config.width);
-            croppedRight = centerCrop(resizedRight, config.width);
+            left_proc  = centerCrop(config, left_raw);
+            right_proc = centerCrop(config, right_raw);
+        }
+        else if (config.method == "pad")
+        {
+            left_proc  = centerPadding(config, left_raw);
+            right_proc = centerPadding(config, right_raw);
         }
         else
         {
-            croppedLeft = resizedLeft;
-            croppedRight = resizedRight;
+            left_proc  = left_raw;
+            right_proc = right_raw;
         }
 
-        // Display images through the helper function
-        displayImages(config, croppedLeft, croppedRight);
+        // Resize
+        left_proc  = resizeImage(config, left_proc);
+        right_proc = resizeImage(config, right_proc);
+
+        // Show images according to the flags (mono / concat / stereo)
+        displayImages(config, left_proc, right_proc);
 
         if (cv::waitKey(1) == 'q')
         {

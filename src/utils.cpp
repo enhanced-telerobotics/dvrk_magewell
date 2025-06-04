@@ -13,40 +13,76 @@ cv::Mat resizeImage(const Config &config, const cv::Mat &image)
         return cv::Mat();
     }
 
-    int newWidth, newHeight;
-    if (config.crop)
-    {
-        // Keep the ratio of the image for the crop
-        int h = image.rows;
-        int w = image.cols;
-        float scale = std::max(static_cast<float>(config.width) / w, static_cast<float>(config.height) / h);
-        newWidth = static_cast<int>(w * scale);
-        newHeight = static_cast<int>(h * scale);
-    }
-    else
-    {
-        // Resize the image to the target dimensions
-        newWidth = config.width;
-        newHeight = config.height;
-    }
+    int targetWidth = config.width;
+    int targetHeight = config.height;
     
     cv::Mat resized;
-    cv::resize(image, resized, cv::Size(newWidth, newHeight));
+    cv::resize(image, resized, cv::Size(targetWidth, targetHeight));
     return resized;
 }
 
-// Center crop the image to the target width
-cv::Mat centerCrop(const cv::Mat &image, int targetWidth)
+// Center crop the image to the target aspect ratio only
+cv::Mat centerCrop(const Config &config, const cv::Mat &image)
 {
     if (image.empty())
     {
         return cv::Mat();
     }
+
     int w = image.cols;
-    int startX = (w - targetWidth) / 2;
-    startX = std::max(0, startX);
-    cv::Rect cropRegion(startX, 0, std::min(targetWidth, w - startX), image.rows);
+    int h = image.rows;
+    float targetRatio = config.ratio;
+    float imageRatio = static_cast<float>(w) / h;
+
+    int cropW, cropH, startX, startY;
+    if (imageRatio > targetRatio) {
+        // Image is wider than target: crop width
+        cropH = h;
+        cropW = static_cast<int>(h * targetRatio);
+        startX = (w - cropW) / 2;
+        startY = 0;
+    } else {
+        // Image is taller than target: crop height
+        cropW = w;
+        cropH = static_cast<int>(w / targetRatio);
+        startX = 0;
+        startY = (h - cropH) / 2;
+    }
+    cv::Rect cropRegion(startX, startY, cropW, cropH);
     return image(cropRegion).clone();
+}
+
+// Center pad the image to the target aspect ratio only (with black borders)
+cv::Mat centerPadding(const Config &config, const cv::Mat &image)
+{
+    if (image.empty())
+    {
+        return cv::Mat();
+    }
+
+    int w = image.cols;
+    int h = image.rows;
+    float targetRatio = config.ratio;
+    float imageRatio = static_cast<float>(w) / h;
+
+    int newW, newH;
+    if (imageRatio > targetRatio) {
+        // Image is wider than target: pad height
+        newW = w;
+        newH = static_cast<int>(w / targetRatio);
+    } else {
+        // Image is taller than target: pad width
+        newH = h;
+        newW = static_cast<int>(h * targetRatio);
+    }
+    int top = (newH - h) / 2;
+    int bottom = newH - h - top;
+    int left = (newW - w) / 2;
+    int right = newW - w - left;
+
+    cv::Mat padded;
+    cv::copyMakeBorder(image, padded, top, bottom, left, right, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
+    return padded;
 }
 
 // Process command-line arguments
@@ -68,9 +104,19 @@ Config processArgs(int argc, char **argv)
         {
             config.concat = true;
         }
-        else if (arg == "--crop")
+        else if (arg == "--method")
         {
-            config.crop = true;
+            if (i + 1 < argc)
+            {
+                config.method = argv[++i]; // Accept string, not float
+            }
+        }
+        else if (arg == "--device")
+        {
+            if (i + 1 < argc)
+            {
+                config.device = argv[++i];
+            }
         }
         else if (arg == "-h" || arg == "--height")
         {
@@ -84,6 +130,23 @@ Config processArgs(int argc, char **argv)
             if (i + 1 < argc)
             {
                 config.width = std::stoi(argv[++i]);
+            }
+        }
+        else if (arg == "--ratio")
+        {
+            if (i + 1 < argc)
+            {
+                std::string ratioStr = argv[++i];
+                size_t colonPos = ratioStr.find(':');
+                if (colonPos != std::string::npos)
+                {
+                    float num = std::stof(ratioStr.substr(0, colonPos));
+                    float denom = std::stof(ratioStr.substr(colonPos + 1));
+                    if (denom != 0.0f)
+                    {
+                        config.ratio = num / denom;
+                    }
+                }
             }
         }
         else if (arg == "--left-offset")

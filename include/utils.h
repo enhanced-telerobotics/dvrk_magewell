@@ -11,10 +11,13 @@ struct Config
     bool disableWindowSettings = false;
     bool mono = false;
     bool concat = false;
-    bool crop = false;
+
+    std::string method = "original";
+    std::string device = "HD";
 
     int height = 1080;
     int width = 960;
+    float ratio = height / static_cast<float>(width);
 
     int leftOffset = 5120;
     int rightOffset = leftOffset + width;
@@ -26,8 +29,11 @@ Config processArgs(int argc, char **argv);
 // Resize image maintaining aspect ratio
 cv::Mat resizeImage(const Config &config, const cv::Mat &image);
 
-// Center crop the image to the target width
-cv::Mat centerCrop(const cv::Mat &image, int targetWidth);
+// Center crop the image to the target width and height
+cv::Mat centerCrop(const Config &config, const cv::Mat &image);
+
+// Center pad the image to the target width and height with black borders
+cv::Mat centerPadding(const Config &config, const cv::Mat &image);
 
 // Set up windows
 void setupWindows(const Config &config);

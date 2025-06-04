@@ -23,7 +23,7 @@ public:
         sync_->registerCallback(std::bind(&StereoViewerNode::imageCallback, this, std::placeholders::_1, std::placeholders::_2));
 
         setupWindows(config_);
-        RCLCPP_INFO(get_logger(), "StereoViewerNode initialised – waiting for image pairs …");
+        RCLCPP_INFO(get_logger(), "StereoViewerNode initialised - waiting for image pairs …");
     }
 
     ~StereoViewerNode() override
@@ -45,16 +45,27 @@ private:
         if (left_raw.empty() || right_raw.empty())
             return;  // conversion failed
 
-        // Resize (and optionally overscale for cropping)
-        cv::Mat left_proc  = resizeImage(config_, left_raw);
-        cv::Mat right_proc = resizeImage(config_, right_raw);
-
-        // Optional centre‑crop to requested width
-        if (config_.crop)
+        // Apply ratio (crop or pad) to raw images
+        cv::Mat left_proc, right_proc;
+        if (config_.method == "crop")
         {
-            left_proc  = centerCrop(left_proc,  config_.width);
-            right_proc = centerCrop(right_proc, config_.width);
+            left_proc  = centerCrop(config_, left_raw);
+            right_proc = centerCrop(config_, right_raw);
         }
+        else if (config_.method == "pad")
+        {
+            left_proc  = centerPadding(config_, left_raw);
+            right_proc = centerPadding(config_, right_raw);
+        }
+        else
+        {
+            left_proc  = left_raw;
+            right_proc = right_raw;
+        }
+
+        // Resize
+        left_proc  = resizeImage(config_, left_proc);
+        right_proc = resizeImage(config_, right_proc);
 
         // Show images according to the flags (mono / concat / stereo)
         displayImages(config_, left_proc, right_proc);
