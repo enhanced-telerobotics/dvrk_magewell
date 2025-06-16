@@ -21,6 +21,7 @@ def generate_launch_description():
             '-h', '768',
             '-w', '1024',
             '--left-offset', f'{2*2560}',
+            '--right-offset', f'{2*2560 + 1024}',
             '--ratio', '4:3',
             '--method', 'crop',
         ],
@@ -37,6 +38,7 @@ def generate_launch_description():
             '-h', '768',
             '-w', '1024',
             '--left-offset', f'{2*2560}',
+            '--right-offset', f'{2*2560 + 1024}',
             '--ratio', '4:3',
             '--method', 'original',
             '--device', 'SD'

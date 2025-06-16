@@ -16,7 +16,7 @@ struct Config
     std::string device = "HD";
 
     int height = 1080;
-    int width = 960;
+    int width = 1920;
     float ratio = height / static_cast<float>(width);
 
     int leftOffset = 5120;
