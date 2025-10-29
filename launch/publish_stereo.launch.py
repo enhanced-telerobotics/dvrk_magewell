@@ -39,14 +39,16 @@ def generate_launch_description():
     sd_group = GroupAction([
         launch_ros.actions.Node(
             package='dvrk_magewell', executable='publish_video', output='screen',
-            parameters=[{'device': 4}],
-            name='image_publisher_left',
-            remappings=[('image_raw', '/davinci_endo/left/image_raw')]),
+            namespace='/davinci_endo/left',
+            parameters=[{'device': 4,
+                         'yaml_file': '/home/erie_lab/ros2_ws/src/dvrk_magewell/resources/sd_left.yaml'}],
+            name='image_publisher'),
         launch_ros.actions.Node(
             package='dvrk_magewell', executable='publish_video', output='screen',
-            parameters=[{'device': 5}],
-            name='image_publisher_right',
-            remappings=[('image_raw', '/davinci_endo/right/image_raw')]),
+            namespace='/davinci_endo/right',
+            parameters=[{'device': 5,
+                         'yaml_file': '/home/erie_lab/ros2_ws/src/dvrk_magewell/resources/sd_right.yaml'}],
+            name='image_publisher'),
     ], condition=LaunchConfigurationEquals('device', 'SD'))
 
     return LaunchDescription([

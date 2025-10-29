@@ -20,6 +20,9 @@ find_package(message_filters REQUIRED)
 # Find OpenCV
 find_package(OpenCV REQUIRED)
 
+# Find yaml-cpp
+find_package(yaml-cpp REQUIRED)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   set(ament_cmake_cpplint_FOUND TRUE)
@@ -50,6 +53,7 @@ ament_target_dependencies(publish_video
 
 target_link_libraries(publish_video
   ${OpenCV_LIBRARIES}
+  yaml-cpp
 )
 
 # Link libraries for display_video
