@@ -1,133 +1,76 @@
 from launch import LaunchDescription
-from launch_ros.actions import Node
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, GroupAction
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
+    device = LaunchConfiguration('device')
+    rectify = LaunchConfiguration('rectify')
+    ns = LaunchConfiguration('namespace')
+
     device_arg = DeclareLaunchArgument(
-        'device',
-        default_value='HD',
+        'device', default_value='HD',
         description='Select device: SD or HD'
     )
-
     rectify_arg = DeclareLaunchArgument(
-        'rectify',
-        default_value='False',
+        'rectify', default_value='False',
         description='Use rectified images if True'
     )
-
-    # Determine remappings based on rectify argument
-    rectify = LaunchConfiguration('rectify')
-    
-    # HD display with raw images (rectify=False)
-    hd_display_raw = Node(
-        package='dvrk_magewell',
-        executable='display_video',
-        name='display_video',
-        output='screen',
-        parameters=[{'use_sim_time': False}],
-        arguments=[
-            '-h', '768',
-            '-w', '1024',
-            '--left-offset', f'{2*2560}',
-            '--right-offset', f'{2*2560 + 1024}',
-            '--ratio', '4:3',
-            '--method', 'crop',
-        ],
-        condition=IfCondition(
-            PythonExpression([
-                '"', LaunchConfiguration('device'), '" == "HD" and "',
-                LaunchConfiguration('rectify'), '" == "False"'
-            ])
-        )
+    namespace_arg = DeclareLaunchArgument(
+        'namespace', default_value='davinci_endo',
+        description='Image topic namespace'
     )
 
-    # HD display with rectified images (rectify=True)
-    hd_display_rect = Node(
+    # Common arguments (device-dependent bits done once)
+    common_args = [
+        '-h', '768',
+        '-w', '1024',
+        '--left-offset', f'{2*2560}',
+        '--right-offset', f'{2*2560 + 1024}',
+        '--ratio', '4:3',
+        '--method',
+        PythonExpression(['"crop" if "', device, '" == "HD" else "original"']),
+        PythonExpression(['"--device SD" if "', device, '" == "SD" else ""']),
+    ]
+
+    # Build absolute topic names based on namespace at launch-time
+    left_raw = "davinci_endo/left/image_raw"
+    right_raw = "davinci_endo/right/image_raw"
+    left_rect = PythonExpression(['"', ns, '/left/image_rect"'])
+    right_rect = PythonExpression(['"', ns, '/right/image_rect"'])
+
+    # rectify=False: no remapping
+    display_raw = Node(
         package='dvrk_magewell',
         executable='display_video',
         name='display_video',
         output='screen',
         parameters=[{'use_sim_time': False}],
-        arguments=[
-            '-h', '768',
-            '-w', '1024',
-            '--left-offset', f'{2*2560}',
-            '--right-offset', f'{2*2560 + 1024}',
-            '--ratio', '4:3',
-            '--method', 'crop',
-        ],
+        arguments=common_args,
+        condition=IfCondition(PythonExpression(['"', rectify, '" == "False"']))
+    )
+
+    # rectify=True: remap raw -> rect (absolute names)
+    display_rect = Node(
+        package='dvrk_magewell',
+        executable='display_video',
+        name='display_video',
+        output='screen',
+        parameters=[{'use_sim_time': False}],
+        arguments=common_args,
         remappings=[
-            ('davinci_endo/left/image_raw', 'davinci_endo/left/image_rect'),
-            ('davinci_endo/right/image_raw', 'davinci_endo/right/image_rect'),
+            (left_raw, left_rect),
+            (right_raw, right_rect),
         ],
-        condition=IfCondition(
-            PythonExpression([
-                '"', LaunchConfiguration('device'), '" == "HD" and "',
-                LaunchConfiguration('rectify'), '" == "True"'
-            ])
-        )
-    )
-
-    # SD display with raw images (rectify=False)
-    sd_display_raw = Node(
-        package='dvrk_magewell',
-        executable='display_video',
-        name='display_video',
-        output='screen',
-        parameters=[{'use_sim_time': False}],
-        arguments=[
-            '-h', '768',
-            '-w', '1024',
-            '--left-offset', f'{2*2560}',
-            '--right-offset', f'{2*2560 + 1024}',
-            '--ratio', '4:3',
-            '--method', 'original',
-            '--device', 'SD'
-        ],
-        condition=IfCondition(
-            PythonExpression([
-                '"', LaunchConfiguration('device'), '" == "SD" and "',
-                LaunchConfiguration('rectify'), '" == "False"'
-            ])
-        )
-    )
-
-    # SD display with rectified images (rectify=True)
-    sd_display_rect = Node(
-        package='dvrk_magewell',
-        executable='display_video',
-        name='display_video',
-        output='screen',
-        parameters=[{'use_sim_time': False}],
-        arguments=[
-            '-h', '768',
-            '-w', '1024',
-            '--left-offset', f'{2*2560}',
-            '--right-offset', f'{2*2560 + 1024}',
-            '--ratio', '4:3',
-            '--method', 'original',
-            '--device', 'SD'
-        ],
-        remappings=[
-            ('davinci_endo/left/image_raw', 'davinci_endo/left/image_rect'),
-            ('davinci_endo/right/image_raw', 'davinci_endo/right/image_rect'),
-        ],
-        condition=IfCondition(
-            PythonExpression([
-                '"', LaunchConfiguration('device'), '" == "SD" and "',
-                LaunchConfiguration('rectify'), '" == "True"'
-            ])
-        )
+        condition=IfCondition(PythonExpression(['"', rectify, '" == "True"']))
     )
 
     return LaunchDescription([
         device_arg,
         rectify_arg,
-        hd_display_raw,
-        hd_display_rect,
-        sd_display_raw,
-        sd_display_rect,
+        namespace_arg,
+        display_raw,
+        display_rect,
     ])
