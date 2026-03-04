@@ -12,51 +12,66 @@ def generate_launch_description():
         description='Select device: SD or HD'
     )
 
-    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     device = LaunchConfiguration('device')
 
     # HD block
     hd_group = GroupAction([
         launch_ros.actions.Node(
-            package='image_publisher', executable='image_publisher_node', output='screen',
-            arguments=['2'],
-            parameters=[{'use_sim_time': use_sim_time, 'publish_rate': 60.0,
-                         'camera_info_url': 'file:///home/erie_lab/ros2_ws/src/dvrk_magewell/resources/left_0.yaml'}],
-            name='image_publisher_left',
-            remappings=[('image_raw', '/davinci_endo/left/image_raw'),
-                        ('camera_info', '/davinci_endo/left/camera_info')]),
+            package='v4l2_camera', executable='v4l2_camera_node', output='screen',
+            namespace='davinci_endo/left',
+            parameters=[{
+                'video_device': '/dev/video2',
+                'camera_frame_id': 'left',
+                'camera_info_url': 'file:///home/erie_lab/ros2_ws/src/dvrk_magewell/resources/left_0.yaml',
+                'output_encoding': 'bgr8',
+                'image_size': [1920, 1080],
+            }],
+            name='left_image_publisher',
+        ),
         launch_ros.actions.Node(
-            package='image_publisher', executable='image_publisher_node', output='screen',
-            arguments=['0'],
-            parameters=[{'use_sim_time': use_sim_time, 'publish_rate': 60.0,
-                         'camera_info_url': 'file:///home/erie_lab/ros2_ws/src/dvrk_magewell/resources/right_0.yaml'}],
-            name='image_publisher_right',
-            remappings=[('image_raw', '/davinci_endo/right/image_raw'),
-                        ('camera_info', '/davinci_endo/right/camera_info')]),
+            package='v4l2_camera', executable='v4l2_camera_node', output='screen',
+            namespace='davinci_endo/right',
+            parameters=[{
+                'video_device': '/dev/video0',
+                'camera_frame_id': 'right',
+                'camera_info_url': 'file:///home/erie_lab/ros2_ws/src/dvrk_magewell/resources/right_0.yaml',
+                'output_encoding': 'bgr8',
+                'image_size': [1920, 1080],
+            }],
+            name='right_image_publisher',
+        ),
     ], condition=LaunchConfigurationEquals('device', 'HD'))
 
     # SD block
     sd_group = GroupAction([
         launch_ros.actions.Node(
-            package='dvrk_magewell', executable='publish_video', output='screen',
-            namespace='/davinci_endo/left',
-            parameters=[{'device': 4,
-                         'yaml_file': '/home/erie_lab/ros2_ws/src/dvrk_magewell/resources/sd_left.yaml'}],
-            name='image_publisher'),
+            package='v4l2_camera', executable='v4l2_camera_node', output='screen',
+            namespace='davinci_endo/left',
+            parameters=[{
+                'video_device': '/dev/video4',
+                'camera_frame_id': 'left',
+                'camera_info_url': 'file:///home/erie_lab/ros2_ws/src/dvrk_magewell/resources/sd_left.yaml',
+                'output_encoding': 'bgr8',
+                'image_size': [640, 480]
+            }],
+            name='left_image_publisher',
+        ),
         launch_ros.actions.Node(
-            package='dvrk_magewell', executable='publish_video', output='screen',
-            namespace='/davinci_endo/right',
-            parameters=[{'device': 5,
-                         'yaml_file': '/home/erie_lab/ros2_ws/src/dvrk_magewell/resources/sd_right.yaml'}],
-            name='image_publisher'),
+            package='v4l2_camera', executable='v4l2_camera_node', output='screen',
+            namespace='davinci_endo/right',
+            parameters=[{
+                'video_device': '/dev/video5',
+                'camera_frame_id': 'right',
+                'camera_info_url': 'file:///home/erie_lab/ros2_ws/src/dvrk_magewell/resources/sd_right.yaml',
+                'output_encoding': 'bgr8',
+                'image_size': [640, 480]
+            }],
+            name='right_image_publisher',
+        ),
     ], condition=LaunchConfigurationEquals('device', 'SD'))
 
     return LaunchDescription([
         device_arg,
-        DeclareLaunchArgument(
-            'use_sim_time',
-            default_value='false',
-            description='Use simulation clock if true'),
         hd_group,
         sd_group,
     ])
