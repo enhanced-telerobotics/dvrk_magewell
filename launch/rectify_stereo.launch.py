@@ -11,10 +11,9 @@ def generate_launch_description():
             parameters=[
                 {'interpolation': 1}  # Optional: Bilinear interpolation
             ],
+            namespace='/davinci_endo/left',
             remappings=[
-                ('image', '/davinci_endo/left/image_raw'),
-                ('camera_info', '/davinci_endo/left/camera_info'),
-                ('image_rect', '/davinci_endo/left/image_rect')
+                ('image', 'image_raw'),
             ]),
 
         # resize_node for right image
@@ -24,9 +23,8 @@ def generate_launch_description():
             parameters=[
                 {'interpolation': 1}  # Optional: Bilinear interpolation
             ],
+            namespace='/davinci_endo/right',
             remappings=[
-                ('image', '/davinci_endo/right/image_raw'),
-                ('camera_info', '/davinci_endo/right/camera_info'),
-                ('image_rect', '/davinci_endo/right/image_rect')
+                ('image', 'image_raw'),
             ]),
     ])
