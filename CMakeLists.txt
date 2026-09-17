@@ -92,9 +92,11 @@ install(DIRECTORY launch/
   DESTINATION share/${PROJECT_NAME}/launch
 )
 
-install(
-  DIRECTORY resources
-  DESTINATION share/${PROJECT_NAME}
-)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/resources")
+  install(
+    DIRECTORY resources
+    DESTINATION share/${PROJECT_NAME}
+  )
+endif()
 
 ament_package()
