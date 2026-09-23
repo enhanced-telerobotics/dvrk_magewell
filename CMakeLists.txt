@@ -17,6 +17,11 @@ find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(message_filters REQUIRED)
 
+# SDL2 is used by display_video, which deliberately has no OpenCV/cv_bridge
+# dependency.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
+
 # Find OpenCV
 find_package(OpenCV REQUIRED)
 
@@ -30,18 +35,18 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-# Include directories
-include_directories(
-  ${OpenCV_INCLUDE_DIRS}
-  ${cv_bridge_INCLUDE_DIRS}
-  ${image_transport_INCLUDE_DIRS}
-  ./include
-)
-
 # Add executable
 add_executable(publish_video src/publish_video.cpp)
-add_executable(display_video src/display_video.cpp src/utils.cpp)
+add_executable(display_video src/display_video.cpp)
 add_executable(local_display_video src/local_display_video.cpp src/utils.cpp)
+
+# Keep OpenCV headers scoped to the executables that use them.
+foreach(opencv_target publish_video local_display_video)
+  target_include_directories(${opencv_target} PRIVATE
+    ${OpenCV_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+  )
+endforeach()
 
 # Link libraries for publish_video
 ament_target_dependencies(publish_video
@@ -56,17 +61,16 @@ target_link_libraries(publish_video
   yaml-cpp
 )
 
-# Link libraries for display_video
+# Link libraries for the SDL-only display node
 ament_target_dependencies(display_video
   rclcpp
   sensor_msgs
-  cv_bridge
   message_filters
   image_transport
 )
 
 target_link_libraries(display_video
-  ${OpenCV_LIBRARIES}
+  PkgConfig::SDL2
 )
 
 # Link libraries for local_display_video

@@ -77,7 +77,23 @@ Publishes video streams from a camera to a specified ROS 2 topic.
 - `--height`: The target height of the video stream (default is 0 for full resolution).
 
 ### `display_video`
-Displays video streams from ROS 2 topics with options for mono, concatenated, or cropped views.
+Displays the same ROS 2 stereo topics using SDL2, with image transport subscriptions.
+The viewer itself does not use OpenCV or `cv_bridge`; compressed decoding is handled
+by the `compressed_image_transport` plugin.
+It accepts display arguments including `-m`, `-c`,
+`-d`, `-h`, `-w`, `--method`, `--ratio`, and the window offsets. For example:
+
+```bash
+ros2 run dvrk_magewell display_video -c -h 1080 -w 960 --left-offset 5120
+```
+
+Standalone subscriptions default to raw; select compressed with
+`--ros-args -p image_transport:=compressed`.
+`show_hrsv.launch.py` defaults to `compressed:=true` for raw, rectified, and resized
+image paths. Set `compressed:=false` to use uncompressed transport. When resizing,
+the resize nodes also use the selected input transport; compressed mode adds a
+decode/re-encode step before the viewer. Publishers must provide the corresponding
+`/compressed` topics.
 
 ### `local_display_video`
 Displays video streams from a specified camera device without publishing to a ROS 2 topic. This is useful for local testing and debugging.
@@ -109,6 +125,7 @@ Launches nodes to display stereo video streams optimized for Goovis without publ
 ## Dependencies
 - ROS 2
 - OpenCV
+- SDL2
 
 ## Installation
 1. Clone the repository into your ROS 2 workspace:
