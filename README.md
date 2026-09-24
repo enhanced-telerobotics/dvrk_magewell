@@ -89,11 +89,17 @@ ros2 run dvrk_magewell display_video -c -h 1080 -w 960 --left-offset 5120
 
 Standalone subscriptions default to raw; select compressed with
 `--ros-args -p image_transport:=compressed`.
-`show_hrsv.launch.py` defaults to `compressed:=true` for raw, rectified, and resized
-image paths. Set `compressed:=false` to use uncompressed transport. When resizing,
-the resize nodes also use the selected input transport; compressed mode adds a
-decode/re-encode step before the viewer. Publishers must provide the corresponding
+`show_hrsv.launch.py` defaults to `compressed:=true` for raw and rectified
+image paths. Set `compressed:=false` to use uncompressed transport.
+Publishers must provide the corresponding
 `/compressed` topics.
+
+For the 60 Hz DeckLink streams, the launch file defaults
+`sync_inter_message_lower_bound_ms:=15.0`. This lets the stereo synchronizer emit a
+matched pair without waiting for the following frame. Set `profile:=true` to log
+the callback rate, input age, stereo timestamp skew, texture upload time, and
+render/present time once per second. Set the lower bound to `0.0` to restore the
+standard `ApproximateTime` behavior.
 
 ### `local_display_video`
 Displays video streams from a specified camera device without publishing to a ROS 2 topic. This is useful for local testing and debugging.

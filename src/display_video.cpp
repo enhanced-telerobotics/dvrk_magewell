@@ -7,6 +7,8 @@
 #include <sensor_msgs/msg/image.hpp>
 
 #include <algorithm>
+#include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <iostream>
@@ -170,6 +172,19 @@ public:
         }
 
         const auto transport = declare_parameter<std::string>("image_transport", "raw");
+        profile_ = declare_parameter<bool>("profile", false);
+        const int queue_size = declare_parameter<int>("sync_queue_size", 10);
+        const double lower_bound_ms =
+            declare_parameter<double>("sync_inter_message_lower_bound_ms", 0.0);
+        if (queue_size < 1)
+        {
+            throw std::invalid_argument("sync_queue_size must be positive");
+        }
+        if (lower_bound_ms < 0.0)
+        {
+            throw std::invalid_argument(
+                "sync_inter_message_lower_bound_ms must be non-negative");
+        }
         // Resolve base-topic remappings before the transport appends /compressed.
         left_sub_.subscribe(this, get_node_topics_interface()->resolve_topic_name(
             "davinci_endo/left/image_raw"), transport, rmw_qos_profile_sensor_data);
@@ -177,9 +192,16 @@ public:
             "davinci_endo/right/image_raw"), transport, rmw_qos_profile_sensor_data);
         RCLCPP_INFO(get_logger(), "Image transport: %s", transport.c_str());
 
-        constexpr int queue_size = 10;
+        SyncPolicy sync_policy(queue_size);
+        if (lower_bound_ms > 0.0)
+        {
+            const auto lower_bound =
+                rclcpp::Duration::from_seconds(lower_bound_ms / 1000.0);
+            sync_policy.setInterMessageLowerBound(0, lower_bound);
+            sync_policy.setInterMessageLowerBound(1, lower_bound);
+        }
         sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(
-            SyncPolicy(queue_size), left_sub_, right_sub_);
+            static_cast<const SyncPolicy &>(sync_policy), left_sub_, right_sub_);
         sync_->registerCallback(std::bind(
             &StereoViewerNode::imageCallback, this,
             std::placeholders::_1, std::placeholders::_2));
@@ -296,6 +318,15 @@ private:
             throw std::runtime_error("SDL_RenderSetLogicalSize failed: " + error);
         }
         SDL_SetRenderDrawColor(view.renderer, 0, 0, 0, 255);
+        SDL_RendererInfo renderer_info;
+        if (SDL_GetRendererInfo(view.renderer, &renderer_info) == 0)
+        {
+            RCLCPP_INFO(
+                get_logger(), "SDL renderer: %s (accelerated=%s, vsync=%s)",
+                renderer_info.name,
+                (renderer_info.flags & SDL_RENDERER_ACCELERATED) ? "yes" : "no",
+                (renderer_info.flags & SDL_RENDERER_PRESENTVSYNC) ? "yes" : "no");
+        }
         return view;
     }
 
@@ -505,16 +536,26 @@ private:
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr &left,
                        const sensor_msgs::msg::Image::ConstSharedPtr &right)
     {
+        const auto callback_start = std::chrono::steady_clock::now();
+        const auto callback_ros_time = now();
+
         if (config_.mono)
         {
             if (!uploadImage(main_view_.renderer, left_texture_, *left, left_scratch_))
             {
                 return;
             }
+            const auto upload_end = std::chrono::steady_clock::now();
             SDL_RenderClear(main_view_.renderer);
             copyTexture(main_view_.renderer, left_texture_,
                         SDL_Rect{0, 0, config_.width, config_.height});
             SDL_RenderPresent(main_view_.renderer);
+            const auto render_end = std::chrono::steady_clock::now();
+            if (profile_)
+            {
+                recordProfile(*left, *right, callback_ros_time, callback_start,
+                              upload_end, render_end);
+            }
             return;
         }
 
@@ -525,12 +566,19 @@ private:
             {
                 return;
             }
+            const auto upload_end = std::chrono::steady_clock::now();
             SDL_RenderClear(main_view_.renderer);
             copyTexture(main_view_.renderer, left_texture_,
                         SDL_Rect{0, 0, config_.width, config_.height});
             copyTexture(main_view_.renderer, right_texture_,
                         SDL_Rect{config_.width, 0, config_.width, config_.height});
             SDL_RenderPresent(main_view_.renderer);
+            const auto render_end = std::chrono::steady_clock::now();
+            if (profile_)
+            {
+                recordProfile(*left, *right, callback_ros_time, callback_start,
+                              upload_end, render_end);
+            }
             return;
         }
 
@@ -539,6 +587,7 @@ private:
         {
             return;
         }
+        const auto upload_end = std::chrono::steady_clock::now();
         SDL_RenderClear(main_view_.renderer);
         copyTexture(main_view_.renderer, left_texture_,
                     SDL_Rect{0, 0, config_.width, config_.height});
@@ -548,7 +597,76 @@ private:
         copyTexture(right_view_.renderer, right_texture_,
                     SDL_Rect{0, 0, config_.width, config_.height});
         SDL_RenderPresent(right_view_.renderer);
+        const auto render_end = std::chrono::steady_clock::now();
+        if (profile_)
+        {
+            recordProfile(*left, *right, callback_ros_time, callback_start,
+                          upload_end, render_end);
+        }
     }
+
+    void recordProfile(
+        const sensor_msgs::msg::Image &left,
+        const sensor_msgs::msg::Image &right,
+        const rclcpp::Time &callback_ros_time,
+        const std::chrono::steady_clock::time_point &callback_start,
+        const std::chrono::steady_clock::time_point &upload_end,
+        const std::chrono::steady_clock::time_point &render_end)
+    {
+        const auto milliseconds = [](const auto &duration) {
+            return std::chrono::duration<double, std::milli>(duration).count();
+        };
+        const rclcpp::Time left_stamp(left.header.stamp);
+        const rclcpp::Time right_stamp(right.header.stamp);
+        const double input_age_ms = 1000.0 * std::max(
+            (callback_ros_time - left_stamp).seconds(),
+            (callback_ros_time - right_stamp).seconds());
+        const double pair_skew_ms =
+            1000.0 * std::abs((left_stamp - right_stamp).seconds());
+        const double upload_ms = milliseconds(upload_end - callback_start);
+        const double render_ms = milliseconds(render_end - upload_end);
+        const double callback_ms = milliseconds(render_end - callback_start);
+
+        if (profile_frames_ == 0)
+        {
+            profile_window_start_ = callback_start;
+        }
+        ++profile_frames_;
+        profile_input_age_ms_ += input_age_ms;
+        profile_pair_skew_ms_ += pair_skew_ms;
+        profile_upload_ms_ += upload_ms;
+        profile_render_ms_ += render_ms;
+        profile_callback_ms_ += callback_ms;
+        profile_max_present_age_ms_ = std::max(
+            profile_max_present_age_ms_, input_age_ms + callback_ms);
+
+        const double window_seconds =
+            std::chrono::duration<double>(render_end - profile_window_start_).count();
+        if (window_seconds >= 1.0)
+        {
+            const double count = static_cast<double>(profile_frames_);
+            RCLCPP_INFO(
+                get_logger(),
+                "profile: %.1f fps, input age %.2f ms, pair skew %.2f ms, "
+                "upload %.2f ms, render/present %.2f ms, callback %.2f ms, "
+                "max presented age %.2f ms",
+                count / window_seconds,
+                profile_input_age_ms_ / count,
+                profile_pair_skew_ms_ / count,
+                profile_upload_ms_ / count,
+                profile_render_ms_ / count,
+                profile_callback_ms_ / count,
+                profile_max_present_age_ms_);
+            profile_frames_ = 0;
+            profile_input_age_ms_ = 0.0;
+            profile_pair_skew_ms_ = 0.0;
+            profile_upload_ms_ = 0.0;
+            profile_render_ms_ = 0.0;
+            profile_callback_ms_ = 0.0;
+            profile_max_present_age_ms_ = 0.0;
+        }
+    }
+
 
     Config config_;
     View main_view_;
@@ -558,6 +676,15 @@ private:
     std::vector<std::uint8_t> left_scratch_;
     std::vector<std::uint8_t> right_scratch_;
     std::set<std::string> reported_encodings_;
+    bool profile_ = false;
+    std::chrono::steady_clock::time_point profile_window_start_;
+    std::uint64_t profile_frames_ = 0;
+    double profile_input_age_ms_ = 0.0;
+    double profile_pair_skew_ms_ = 0.0;
+    double profile_upload_ms_ = 0.0;
+    double profile_render_ms_ = 0.0;
+    double profile_callback_ms_ = 0.0;
+    double profile_max_present_age_ms_ = 0.0;
     image_transport::SubscriberFilter left_sub_;
     image_transport::SubscriberFilter right_sub_;
     std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;

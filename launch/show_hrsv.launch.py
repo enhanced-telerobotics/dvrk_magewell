@@ -1,15 +1,18 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
     device = LaunchConfiguration('device')
     rectify = LaunchConfiguration('rectify')
-    resize = LaunchConfiguration('resize')
     compressed = LaunchConfiguration('compressed')
+    profile = LaunchConfiguration('profile')
+    sync_queue_size = LaunchConfiguration('sync_queue_size')
+    sync_inter_message_lower_bound_ms = LaunchConfiguration(
+        'sync_inter_message_lower_bound_ms')
     transport = PythonExpression([
         '"compressed" if "', compressed, '".lower() in ("true", "1") else "raw"'
     ])
@@ -28,14 +31,24 @@ def generate_launch_description():
         description='Image topic namespace'
     )
 
-    resize_arg = DeclareLaunchArgument(
-        'resize', default_value='false',
-        description='Resize each image to 960x540 before display'
-    )
-
     compressed_arg = DeclareLaunchArgument(
         'compressed', default_value='true',
-        description='Use compressed image transport for display and resize inputs'
+        description='Use compressed image transport for display'
+    )
+
+    profile_arg = DeclareLaunchArgument(
+        'profile', default_value='false',
+        description='Log display latency and rendering timing once per second'
+    )
+
+    sync_queue_size_arg = DeclareLaunchArgument(
+        'sync_queue_size', default_value='10',
+        description='ApproximateTime stereo synchronization queue depth'
+    )
+
+    sync_lower_bound_arg = DeclareLaunchArgument(
+        'sync_inter_message_lower_bound_ms', default_value='15.0',
+        description='Known minimum interval between frames; 15 ms is suitable for 60 Hz'
     )
 
     # Common arguments (device-dependent bits done once)
@@ -50,7 +63,6 @@ def generate_launch_description():
         PythonExpression(['"--device SD" if "', device, '" == "SD" else ""']),
     ]
 
-    resize_nodes = []
     display_remappings = []
     for eye in ('left', 'right'):
         # Accept namespaces with or without a leading slash.
@@ -59,36 +71,23 @@ def generate_launch_description():
             '"', base, '/" + ("image_rect" if "', rectify,
             '".lower() in ("true", "1") else "image_raw")'
         ])
-        resize_nodes.append(Node(
-            package='image_proc', executable='resize_node',
-            name=f'resize_{eye}', output='screen',
-            parameters=[{
-                'use_scale': False, 'height': 540, 'width': 960,
-                'interpolation': 1,
-                'image_transport': transport,
-            }],
-            remappings=[
-                ('image/image_raw', source_image),
-                ('image/image_raw/compressed', [source_image, '/compressed']),
-                ('image/camera_info', [base, '/camera_info']),
-                ('resize/image_raw', [base, '/resized/image_raw']),
-                ('resize/image_raw/compressed', [base, '/resized/image_raw/compressed']),
-                ('resize/camera_info', [base, '/resized/camera_info']),
-            ],
-            condition=IfCondition(resize),
-        ))
-        display_image = PythonExpression([
-            '"', base, '/resized/image_raw" if "', resize,
-            '".lower() in ("true", "1") else "', source_image, '"'
-        ])
-        display_remappings.append((f'davinci_endo/{eye}/image_raw', display_image))
+        display_remappings.append((f'davinci_endo/{eye}/image_raw', source_image))
 
     display = Node(
         package='dvrk_magewell',
         executable='display_video',
         name='display_video',
         output='screen',
-        parameters=[{'use_sim_time': False, 'image_transport': transport}],
+        parameters=[{
+            'use_sim_time': False,
+            'image_transport': transport,
+            'profile': ParameterValue(profile, value_type=bool),
+            'sync_queue_size': ParameterValue(sync_queue_size, value_type=int),
+            'sync_inter_message_lower_bound_ms': ParameterValue(
+                sync_inter_message_lower_bound_ms,
+                value_type=float,
+            ),
+        }],
         arguments=common_args,
         remappings=display_remappings,
     )
@@ -97,8 +96,9 @@ def generate_launch_description():
         device_arg,
         rectify_arg,
         namespace_arg,
-        resize_arg,
         compressed_arg,
-        *resize_nodes,
+        profile_arg,
+        sync_queue_size_arg,
+        sync_lower_bound_arg,
         display,
     ])
