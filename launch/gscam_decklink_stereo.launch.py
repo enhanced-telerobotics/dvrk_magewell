@@ -67,6 +67,13 @@ def generate_launch_description():
         default_value = 'False',
         choices = ['True', 'False', '0', '1'])
 
+    use_sensor_data_qos_configuration = LaunchConfiguration('use_sensor_data_qos')
+    use_sensor_data_qos_argument = DeclareLaunchArgument(
+        'use_sensor_data_qos',
+        description = 'publish image and camera_info topics using sensor-data QoS',
+        default_value = 'True',
+        choices = ['True', 'False', '0', '1'])
+
     gscam_launch =  [
         PathJoinSubstitution([FindPackageShare('dvrk_magewell'), 'launch', 'gscam_decklink.launch.py'])
     ]
@@ -84,6 +91,7 @@ def generate_launch_description():
          'crop_right': crop_right_configuration,
          'deinterlace': deinterlace_configuration,
          'glimagesink': glimagesink_configuration,
+         'use_sensor_data_qos': use_sensor_data_qos_configuration,
         }.items())
 
     right_gscam_node = IncludeLaunchDescription(
@@ -99,6 +107,7 @@ def generate_launch_description():
          'crop_right': crop_right_configuration,
          'deinterlace': deinterlace_configuration,
          'glimagesink': glimagesink_configuration,
+         'use_sensor_data_qos': use_sensor_data_qos_configuration,
         }.items())
 
     return LaunchDescription([
@@ -112,6 +121,7 @@ def generate_launch_description():
         crop_right_argument,
         deinterlace_argument,
         glimagesink_argument,
+        use_sensor_data_qos_argument,
         left_gscam_node,
         right_gscam_node
     ])

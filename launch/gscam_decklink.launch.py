@@ -77,6 +77,13 @@ def generate_launch_description():
         default_value = 'True',
         choices = ['True', 'False', '0', '1'])
 
+    use_sensor_data_qos_configuration = LaunchConfiguration('use_sensor_data_qos')
+    use_sensor_data_qos_argument = DeclareLaunchArgument(
+        'use_sensor_data_qos',
+        description = 'publish image and camera_info topics using sensor-data QoS',
+        default_value = 'False',
+        choices = ['True', 'False', '0', '1'])
+
     gscam_node = Node(
         package = 'gscam',
         executable = 'gscam_node',
@@ -104,6 +111,9 @@ def generate_launch_description():
             'camera_name': camera_name_configuration,
             'frame_id': PythonExpression(['"/', camera_name_configuration, '" + "_frame"']),
             'synk_sink': 'false',
+            'use_sensor_data_qos': use_sensor_data_qos_configuration,
+            'camera.image_raw.ffmpeg.bit_rate': 8242880,
+            'camera.image_raw.ffmpeg.gop_size': 1,
         }],
         remappings=[
             ('camera/camera_info', 'camera_info'),
@@ -142,6 +152,7 @@ def generate_launch_description():
         deinterlace_argument,
         glimagesink_argument,
         rectify_argument,
+        use_sensor_data_qos_argument,
         gscam_node,
         rectify_node
     ])
